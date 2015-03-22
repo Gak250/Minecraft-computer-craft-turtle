@@ -46,6 +46,16 @@ position = {
 		return true
 	end,
 	
+	turnBack = function()
+		if not position.turnRight() then
+			return false
+		end
+		if not position.turnRight() then
+			return false
+		end
+		return true
+	end,
+	
 	faceLeft = function(faceDirection)
 		while position.orientation ~= faceDirection do
 			if not position.turnLeft() then
@@ -120,6 +130,11 @@ position = {
 	end,	
 	
 	moveUp = function()
+		if turtle.detectUp() then
+			if not turtle.digUp() then
+				return false
+			end
+		end
 		if not turtle.up() then
 			return false
 		end	
@@ -128,6 +143,11 @@ position = {
 	end,	
 	
 	moveDown = function()
+		if turtle.detectDown() then
+			if not turtle.digDown() then
+				return false
+			end
+		end
 		if not turtle.down() then
 			return false
 		end
@@ -173,7 +193,19 @@ action = {
 		return data.name
 	end,
 	
-	buildBlockUnder = function()
+}
+	
+local builder = {}
+builder = {
+ 
+	buildBlockUnder = function(pattern)
+		if pattern then
+			material = pattern.selectMaterial(position.x, position.y, position.z)
+			if not turtle.select(material) then
+				return false
+			end
+		end
+
 		if turtle.detectDown() then
 			if turtle.compareDown() then
 				return true
@@ -182,49 +214,50 @@ action = {
 				return false
 			end
 		end
+		
 		return turtle.placeDown()
 	end,
 	
-	buildLineUnder = function(a)
+	buildLineUnder = function(a, pattern)
 		for i = 1, a - 1 do
-			if not action.buildBlockUnder() then
+			if not builder.buildBlockUnder(pattern) then
 				return false
 			end
 			if not position.moveForward() then
 				return false
 			end
 		end
-		return action.buildBlockUnder()
+		return builder.buildBlockUnder(pattern)
 	end,
 	
-	buildBorderUnder = function(a, b)
-		if not action.buildLineUnder(a) then
+	buildBorderUnder = function(a, b, pattern)
+		if not builder.buildLineUnder(a, pattern) then
 			return false
 		end
 		if not position.turnRight() then
 			return false
 		end
-		if not action.buildLineUnder(b) then
+		if not builder.buildLineUnder(b, pattern) then
 			return false
 		end
 		if not position.turnRight() then
 			return false
 		end
-		if not action.buildLineUnder(a) then
+		if not builder.buildLineUnder(a, pattern) then
 			return false
 		end
 		if not position.turnRight() then
 			return false
 		end
-		if not action.buildLineUnder(b - 1) then
+		if not builder.buildLineUnder(b - 1, pattern) then
 			return false
 		end
 		return true
 	end,
 	
-	buildFeildUnder = function(a, b)
+	buildFeildUnder = function(a, b, pattern)
 		while a > 0 and b > 0 do
-			if not action.buildBorderUnder(a, b) then
+			if not builder.buildBorderUnder(a, b, pattern) then
 				return false
 			end
 			a = a - 2
@@ -237,12 +270,53 @@ action = {
 			end
 		end
 	end,
+	
+	buildWall = function(width, height, pattern)
+		for h = 1, height do 
+			if not position.moveUp() then
+				return false
+			end
+			if not builder.buildLineUnder(width, pattern) then
+				return false
+			end
+			if not position.turnBack() then
+				return false
+			end
+		end
+		return true
+	end,
+}
+
+chessPattern = {}
+chessPattern = {
+	material1 = 2,
+	material2 = 3,
+	
+	selectMaterial = function(x, y, z)
+		local hash = (math.abs(x) + math.abs(y) + math.abs(z)) % 2
+		if hash == 0 then
+			return chessPattern.material1
+		end
+		return chessPattern.material2
+	end,
+}
+
+circlePattern = {}
+circlePattern = {
+	material1 = 2,
+	material2 = 3,
+	
+	selectMaterial = function(x, y, z)
+		local hash = math.floor(math.sqrt(x * x + z * z) + .5) % 2
+		if hash == 0 then
+			return circlePattern.material1
+		end
+		return circlePattern.material2
+	end,
 }
 
 turtle.select(1)
 turtle.refuel(1)
 
 turtle.select(2)
-
---print(action.buildLineUnder(2))
-print(action.buildFeildUnder(8, 5))
+builder.buildWall(5, 3)
